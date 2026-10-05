@@ -6,9 +6,16 @@ Expense Tracker is the foundation for a web application for managing and analysi
 expenses. The project aims to demonstrate a complete DevOps pipeline, from
 development through automated checks to deployment.
 
-**Current status:** The Flask application exposes an endpoint at `/` that returns
-the application name and status as JSON. Expense tracking and analysis have not
-been implemented yet.
+**Current status:** The Flask application exposes a status endpoint at `/` and
+`POST /api/expenses` for validating requests and returning expense fields with a
+generated ID and status 201. Expenses are not stored. Persistence and expense
+analysis have not been implemented yet.
+
+## API contract
+
+The [POST /api/expenses contract](docs/api/expenses.md) defines request validation,
+success and error responses, and planned persistence guarantees. The current
+implementation intentionally omits storage.
 
 ## Prerequisites
 
@@ -71,21 +78,50 @@ The response contains:
 }
 ```
 
+### Submit an expense
+
+With the application running, use another terminal:
+
+```bash
+curl -i http://127.0.0.1:8000/api/expenses \
+  -H 'Content-Type: application/json' \
+  -d '{"amount":"12.30","category":"Groceries","date":"2026-10-05"}'
+```
+
+The endpoint validates the request and returns **201 Created** with JSON like:
+
+```json
+{
+  "id": "3d7fbcb6-cf52-4df4-9053-3ae6d294fcf5",
+  "amount": "12.30",
+  "category": "Groceries",
+  "date": "2026-10-05"
+}
+```
+
+The ID is generated for each request. **Expenses are returned but are not saved
+yet**, including in memory. Amount must be a positive decimal string with at most
+two decimal places, category must contain non-whitespace text, and date must be
+a valid `YYYY-MM-DD` date. Invalid requests return **400** with a JSON `error` field.
+
 ## Project structure
 
 ```text
 expense-tracker/
 ├── app/
 │   ├── __init__.py       Creates and configures the Flask application
-│   └── routes.py         Defines the status endpoint
+│   └── routes.py         Defines status and expense creation endpoints
 ├── tests/
-│   └── test_app.py       Placeholder for automated tests
+│   └── test_api.py       API response and validation tests
 ├── wsgi.py              Entry point and local development server
 ├── pyproject.toml       Dependencies and development tool configuration
 ├── uv.lock              Locked dependency versions
 ├── README.md            Project documentation
 └── LICENSE              MIT licence
 ```
+
+Run the tests with `uv run --locked pytest`.
+Run the configured lint checks with `uv run --locked ruff check .`.
 
 ## Licence
 
