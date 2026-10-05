@@ -78,6 +78,32 @@ The response contains:
 }
 ```
 
+### Submit an expense
+
+With the application running, use another terminal:
+
+```bash
+curl -i http://127.0.0.1:8000/api/expenses \
+  -H 'Content-Type: application/json' \
+  -d '{"amount":"12.30","category":"Groceries","date":"2026-10-05"}'
+```
+
+The endpoint validates the request and returns **201 Created** with JSON like:
+
+```json
+{
+  "id": "3d7fbcb6-cf52-4df4-9053-3ae6d294fcf5",
+  "amount": "12.30",
+  "category": "Groceries",
+  "date": "2026-10-05"
+}
+```
+
+The ID is generated for each request. **Expenses are returned but are not saved
+yet**, including in memory. Amount must be a positive decimal string with at most
+two decimal places, category must contain non-whitespace text, and date must be
+a valid `YYYY-MM-DD` date. Invalid requests return **400** with a JSON `error` field.
+
 ## Project structure
 
 ```text
@@ -95,6 +121,7 @@ expense-tracker/
 ```
 
 Run the tests with `uv run --locked pytest`.
+Run the configured lint checks with `uv run --locked ruff check .`.
 
 ## Licence
 

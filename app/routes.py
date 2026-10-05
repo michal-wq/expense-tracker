@@ -17,9 +17,15 @@ def index():
 
 
 def validate_expense(payload):
+    """Collect field errors without changing the request data."""
     required = {"amount", "category", "date"}
-    errors = {field: "This field is required." for field in required - payload.keys()}
-    errors.update({field: "Unknown field." for field in payload.keys() - required})
+    errors = {}
+    for field in required:
+        if field not in payload:
+            errors[field] = "This field is required."
+    for field in payload:
+        if field not in required:
+            errors[field] = "Unknown field."
 
     if "amount" in payload:
         amount = payload["amount"]
@@ -49,7 +55,9 @@ def validate_expense(payload):
 
 @bp.post("/api/expenses")
 def create_expense():
-    payload = request.get_json(silent=True) if request.mimetype == "application/json" else None
+    payload = None
+    if request.mimetype == "application/json":
+        payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         return jsonify(
             error={

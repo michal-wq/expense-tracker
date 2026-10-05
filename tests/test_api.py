@@ -6,10 +6,10 @@ from app import create_app
 
 
 @pytest.fixture
-def app():
+def client():
     app = create_app()
     app.config["TESTING"] = True
-    return app
+    return app.test_client()
 
 
 @pytest.fixture
@@ -21,9 +21,8 @@ def payload():
     }
 
 
-def test_create_expense_returns_created_expense(app, payload):
-    with app.test_client() as client:
-        response = client.post("/api/expenses", json=payload)
+def test_create_expense_returns_created_expense(client, payload):
+    response = client.post("/api/expenses", json=payload)
 
     assert response.status_code == 201
     assert response.mimetype == "application/json"
@@ -35,10 +34,9 @@ def test_create_expense_returns_created_expense(app, payload):
 
 
 @pytest.mark.parametrize("field", ["amount", "category", "date"])
-def test_create_expense_rejects_missing_required_field(app, payload, field):
+def test_create_expense_rejects_missing_required_field(client, payload, field):
     del payload[field]
-    with app.test_client() as client:
-        response = client.post("/api/expenses", json=payload)
+    response = client.post("/api/expenses", json=payload)
 
     assert response.status_code == 400
     assert response.mimetype == "application/json"
@@ -46,9 +44,9 @@ def test_create_expense_rejects_missing_required_field(app, payload, field):
 
 
 @pytest.mark.parametrize("amount", ["-12.30", "0", "0.00", "-0.00", "000.0"])
-def test_create_expense_rejects_non_positive_amount(app, payload, amount):
+def test_create_expense_rejects_non_positive_amount(client, payload, amount):
     payload["amount"] = amount
-    response = app.test_client().post("/api/expenses", json=payload)
+    response = client.post("/api/expenses", json=payload)
 
     assert response.status_code == 400
     assert response.mimetype == "application/json"
@@ -64,9 +62,9 @@ def test_create_expense_rejects_non_positive_amount(app, payload, amount):
         ("123456789012345678901234567890.12", "123456789012345678901234567890.12"),
     ],
 )
-def test_create_expense_normalizes_exact_amount(app, payload, amount, expected):
+def test_create_expense_normalizes_exact_amount(client, payload, amount, expected):
     payload.update(amount=amount, category="  Groceries  ", date="2024-02-29")
-    response = app.test_client().post("/api/expenses", json=payload)
+    response = client.post("/api/expenses", json=payload)
     assert response.status_code == 201
     expense = response.get_json()
     assert expense == {
@@ -116,8 +114,7 @@ def test_create_expense_normalizes_exact_amount(app, payload, amount, expected):
         ("id", "client-id"),
     ],
 )
-def test_create_expense_rejects_invalid_field(app, payload, field, value):
-    client = app.test_client()
+def test_create_expense_rejects_invalid_field(client, payload, field, value):
     payload[field] = value
     response = client.post("/api/expenses", json=payload)
     assert response.status_code == 400
@@ -142,8 +139,7 @@ def test_create_expense_rejects_invalid_field(app, payload, field, value):
         ("{}", "application/vnd.api+json"),
     ],
 )
-def test_create_expense_rejects_invalid_request(app, body, content_type):
-    client = app.test_client()
+def test_create_expense_rejects_invalid_request(client, body, content_type):
     response = client.post("/api/expenses", data=body, content_type=content_type)
     assert response.status_code == 400
     assert response.mimetype == "application/json"
@@ -155,8 +151,8 @@ def test_create_expense_rejects_invalid_request(app, body, content_type):
     }
 
 
-def test_reports_all_field_errors(app):
-    response = app.test_client().post("/api/expenses", json={"amount": "bad", "extra": True})
+def test_reports_all_field_errors(client):
+    response = client.post("/api/expenses", json={"amount": "bad", "extra": True})
     assert response.status_code == 400
     fields = response.get_json()["error"]["fields"]
     assert set(fields) == {"amount", "category", "date", "extra"}
@@ -164,9 +160,11 @@ def test_reports_all_field_errors(app):
     assert fields["extra"] == "Unknown field."
 
 
-def test_repeated_requests_generate_different_ids(app, payload):
-    first = app.test_client().post("/api/expenses", json=payload).get_json()
-    response = app.test_client().post(
+def test_repeated_requests_generate_different_ids(client, payload):
+    first_response = client.post("/api/expenses", json=payload)
+    assert first_response.status_code == 201
+    first = first_response.get_json()
+    response = client.post(
         "/api/expenses",
         json=payload,
         content_type="application/json; charset=utf-8",
@@ -176,7 +174,7 @@ def test_repeated_requests_generate_different_ids(app, payload):
     assert first["id"] != second["id"]
 
 
-def test_status_endpoint(app):
-    response = app.test_client().get("/")
+def test_status_endpoint(client):
+    response = client.get("/")
     assert response.status_code == 200
     assert response.get_json() == {"name": "expense-tracker", "status": "running"}
