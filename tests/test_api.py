@@ -24,3 +24,18 @@ def test_create_expense_returns_created_expense():
     assert expense["category"] == payload["category"]
     assert expense["date"] == payload["date"]
 
+
+def test_create_expense_rejects_missing_amount():
+    app = create_app()
+    app.config["TESTING"] = True
+
+    payload = {
+        "category": "Groceries",
+        "date": "2026-10-05",
+    }
+
+    with app.test_client() as client:
+        response = client.post("/api/expenses", json=payload)
+
+    assert response.status_code == 400
+    assert "error" in response.get_json()
