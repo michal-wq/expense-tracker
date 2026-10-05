@@ -10,6 +10,12 @@ development through automated checks to deployment.
 the application name and status as JSON. Expense tracking and analysis have not
 been implemented yet.
 
+## API contract
+
+The proposed [POST /api/expenses contract](docs/api/expenses.md) defines request
+validation, persistence guarantees, and success and error responses. The endpoint
+is documented for future implementation and is not available yet.
+
 ## Prerequisites
 
 - Python ≥ 3.12
