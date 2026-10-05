@@ -6,15 +6,16 @@ Expense Tracker is the foundation for a web application for managing and analysi
 expenses. The project aims to demonstrate a complete DevOps pipeline, from
 development through automated checks to deployment.
 
-**Current status:** The Flask application exposes an endpoint at `/` that returns
-the application name and status as JSON. Expense tracking and analysis have not
-been implemented yet.
+**Current status:** The Flask application exposes a status endpoint at `/` and
+`POST /api/expenses` for validating requests and returning expense fields with a
+generated ID and status 201. Expenses are not stored. Persistence and expense
+analysis have not been implemented yet.
 
 ## API contract
 
-The proposed [POST /api/expenses contract](docs/api/expenses.md) defines request
-validation, persistence guarantees, and success and error responses. The endpoint
-is documented for future implementation and is not available yet.
+The [POST /api/expenses contract](docs/api/expenses.md) defines request validation,
+success and error responses, and planned persistence guarantees. The current
+implementation intentionally omits storage.
 
 ## Prerequisites
 
@@ -83,15 +84,17 @@ The response contains:
 expense-tracker/
 ├── app/
 │   ├── __init__.py       Creates and configures the Flask application
-│   └── routes.py         Defines the status endpoint
+│   └── routes.py         Defines status and expense creation endpoints
 ├── tests/
-│   └── test_app.py       Placeholder for automated tests
+│   └── test_api.py       API response and validation tests
 ├── wsgi.py              Entry point and local development server
 ├── pyproject.toml       Dependencies and development tool configuration
 ├── uv.lock              Locked dependency versions
 ├── README.md            Project documentation
 └── LICENSE              MIT licence
 ```
+
+Run the tests with `uv run --locked pytest`.
 
 ## Licence
 

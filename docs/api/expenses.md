@@ -1,7 +1,11 @@
 # Create an expense
 
-**Status:** Proposed contract. `POST /api/expenses` is not implemented yet.
-The application currently exposes only the status endpoint at `/`.
+**Status:** Partially implemented. `POST /api/expenses` validates the request,
+generates an ID, and returns the expense fields with status 201. As requested for
+this implementation step, it does not store expenses in a database, files, or an
+in-memory collection. Persistence requirements and persistence error responses
+below describe the future target contract, not current behavior. The application
+also exposes the status endpoint at `/`.
 
 ## Request
 
@@ -107,7 +111,7 @@ deliberately a **400**, so all invalid requests follow the same status policy.
 - Save the ID and all three fields atomically. If saving fails, roll back the
   write; never leave a partial expense or report **201** before the save commits.
 - Persistence must survive application restarts. The storage technology and
-  schema are implementation decisions deferred until endpoint development.
+  schema are implementation decisions deferred until persistence is introduced.
 
 ## Acceptance examples
 
@@ -125,5 +129,5 @@ deliberately a **400**, so all invalid requests follow the same status policy.
 | Multiple invalid fields | 400; all field errors reported; no expense saved. |
 | Persistence transaction fails | 500; no expense committed. |
 
-These are requirements for future implementation and tests, not claims about
-the current application's behavior.
+Response and validation behavior is covered by `tests/test_api.py`. Persistence
+checks are deferred until storage is introduced.
