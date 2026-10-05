@@ -25,6 +25,8 @@ def validate_expense(payload):
         amount = payload["amount"]
         if not isinstance(amount, str) or not re.fullmatch(r"-?[0-9]+(?:\.[0-9]{1,2})?", amount):
             errors["amount"] = "Must be a decimal string with at most two decimal places."
+        elif Decimal(amount) <= 0:
+            errors["amount"] = "Must be greater than zero."
 
     if "category" in payload:
         category = payload["category"]
@@ -67,8 +69,6 @@ def create_expense():
         ), 400
 
     amount = Decimal(payload["amount"])
-    if amount.is_zero():
-        amount = amount.copy_abs()
     return jsonify(
         id=str(uuid4()),
         amount=format(amount, ".2f"),

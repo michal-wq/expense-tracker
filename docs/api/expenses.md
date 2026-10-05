@@ -16,7 +16,7 @@ The body must be a JSON object containing exactly these three required fields:
 
 | Field | Type | Validation |
 | --- | --- | --- |
-| `amount` | string | A base-10 decimal string with an optional leading minus sign, at least one ASCII digit before the decimal point, and, if a decimal point is present, one or two ASCII digits after it. The entire string must match `-?[0-9]+(?:\.[0-9]{1,2})?`. |
+| `amount` | string | A base-10 decimal string whose value is strictly greater than zero, with at least one ASCII digit before the decimal point and, if a decimal point is present, one or two ASCII digits after it. The entire string must match `[0-9]+(?:\.[0-9]{1,2})?`. |
 | `category` | string | Must contain at least one non-whitespace character. Leading and trailing whitespace is removed before saving and returning the value; internal whitespace and letter case are preserved. |
 | `date` | string | Exactly ten ASCII characters in `YYYY-MM-DD` format and a real Gregorian calendar date, with a year from `0001` through `9999`. Validate month lengths and leap years. |
 
@@ -25,15 +25,16 @@ fields are rejected, including a client-supplied `id`; IDs belong to the server.
 
 Amount examples:
 
-- Valid: `"12"`, `"12.3"`, `"12.30"`, `"0"`, `"-12.30"`, `"0012.30"`.
+- Valid: `"12"`, `"12.3"`, `"12.30"`, `"0.01"`, `"0012.30"`.
 - Invalid: the JSON number `12.30`, `""`, `" 12.30 "`, `"+12.30"`, `".50"`,
-  `"12."`, `"12.345"`, `"1e2"`, `"12,30"`, `"NaN"`, `"Infinity"`.
+  `"12."`, `"12.345"`, `"1e2"`, `"12,30"`, `"NaN"`, `"Infinity"`, `"0"`, `"0.00"`,
+  `"-0.00"`, `"-12.30"`.
 
-Zero and negative amounts are allowed; this contract imposes no positive-only
-restriction. Amounts must be handled and stored as exact decimal values, without
+Zero and negative amounts are invalid. Amounts must be handled and stored as
+exact decimal values, without
 binary floating-point conversion or rounding. Responses use a canonical decimal
 string with exactly two fractional digits and no redundant leading zeros:
-`"0012.3"` becomes `"12.30"`, and negative zero becomes `"0.00"`.
+`"0012.3"` becomes `"12.30"`.
 
 Date examples: `"2024-02-29"` is valid; `"2025-02-29"`, `"2026-04-31"`,
 `"2026-1-05"`, `"0000-01-01"`, surrounding whitespace, and timestamps are invalid.
@@ -122,6 +123,7 @@ deliberately a **400**, so all invalid requests follow the same status policy.
 | `category: "  Groceries  "`, otherwise valid | 201; category stored and returned as `"Groceries"`. |
 | A required field missing or `null` | 400; no expense saved. |
 | Numeric amount or more than two decimal places | 400; no expense saved. |
+| Zero or negative amount | 400; no expense saved. |
 | Empty or whitespace-only category | 400; no expense saved. |
 | Invalid calendar date or date format | 400; no expense saved. |
 | Extra field, including `id` | 400; no expense saved. |

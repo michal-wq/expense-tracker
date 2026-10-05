@@ -34,21 +34,31 @@ def test_create_expense_returns_created_expense(app, payload):
     assert expense == {"id": expense["id"], **payload}
 
 
-def test_create_expense_rejects_missing_amount(app, payload):
-    del payload["amount"]
+@pytest.mark.parametrize("field", ["amount", "category", "date"])
+def test_create_expense_rejects_missing_required_field(app, payload, field):
+    del payload[field]
     with app.test_client() as client:
         response = client.post("/api/expenses", json=payload)
 
     assert response.status_code == 400
-    assert response.get_json()["error"]["fields"] == {"amount": "This field is required."}
+    assert response.mimetype == "application/json"
+    assert response.get_json()["error"]["fields"] == {field: "This field is required."}
+
+
+@pytest.mark.parametrize("amount", ["-12.30", "0", "0.00", "-0.00", "000.0"])
+def test_create_expense_rejects_non_positive_amount(app, payload, amount):
+    payload["amount"] = amount
+    response = app.test_client().post("/api/expenses", json=payload)
+
+    assert response.status_code == 400
+    assert response.mimetype == "application/json"
+    assert "amount" in response.get_json()["error"]["fields"]
 
 
 @pytest.mark.parametrize(
     "amount, expected",
     [
-        ("-12.30", "-12.30"),
-        ("0", "0.00"),
-        ("-0.00", "0.00"),
+        ("0.01", "0.01"),
         ("0012.3", "12.30"),
         ("12", "12.00"),
         ("123456789012345678901234567890.12", "123456789012345678901234567890.12"),
@@ -70,48 +80,46 @@ def test_create_expense_normalizes_exact_amount(app, payload, amount, expected):
 @pytest.mark.parametrize(
     "field, value",
     [
-        ("amount", value)
-        for value in [
-            None,
-            12.30,
-            True,
-            [],
-            {},
-            "",
-            " 12.30 ",
-            "+12.30",
-            ".50",
-            "12.",
-            "12.345",
-            "1e2",
-            "12,30",
-            "NaN",
-            "Infinity",
-            "１２.３０",
-            "12\n",
-        ]
-    ]
-    + [("category", value) for value in [None, 42, [], {}, "", " \t\n"]]
-    + [
-        ("date", value)
-        for value in [
-            None,
-            20261005,
-            "2025-02-29",
-            "2026-04-31",
-            "2026-1-05",
-            "0000-01-01",
-            "2026-10-05T00:00:00",
-            " 2026-10-05",
-            "２０２６-10-05",
-            "2026-10-05\n",
-        ]
-    ]
-    + [("id", "client-id")],
+        ("amount", None),
+        ("amount", 12.30),
+        ("amount", True),
+        ("amount", []),
+        ("amount", {}),
+        ("amount", ""),
+        ("amount", " 12.30 "),
+        ("amount", "+12.30"),
+        ("amount", ".50"),
+        ("amount", "12."),
+        ("amount", "12.345"),
+        ("amount", "1e2"),
+        ("amount", "12,30"),
+        ("amount", "NaN"),
+        ("amount", "Infinity"),
+        ("amount", "１２.３０"),
+        ("amount", "12\n"),
+        ("category", None),
+        ("category", 42),
+        ("category", []),
+        ("category", {}),
+        ("category", ""),
+        ("category", " \t\n"),
+        ("date", None),
+        ("date", 20261005),
+        ("date", "2025-02-29"),
+        ("date", "2026-04-31"),
+        ("date", "2026-1-05"),
+        ("date", "0000-01-01"),
+        ("date", "2026-10-05T00:00:00"),
+        ("date", " 2026-10-05"),
+        ("date", "２０２６-10-05"),
+        ("date", "2026-10-05\n"),
+        ("id", "client-id"),
+    ],
 )
 def test_create_expense_rejects_invalid_field(app, payload, field, value):
     client = app.test_client()
-    response = client.post("/api/expenses", json={**payload, field: value})
+    payload[field] = value
+    response = client.post("/api/expenses", json=payload)
     assert response.status_code == 400
     assert response.mimetype == "application/json"
     error = response.get_json()["error"]
@@ -138,6 +146,7 @@ def test_create_expense_rejects_invalid_request(app, body, content_type):
     client = app.test_client()
     response = client.post("/api/expenses", data=body, content_type=content_type)
     assert response.status_code == 400
+    assert response.mimetype == "application/json"
     assert response.get_json() == {
         "error": {
             "code": "invalid_request",
