@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Expense Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <main>
+      <h1>Expense Tracker</h1>
+      <p>All fields are required. Submission is not available yet.</p>
+      <form id="expense-form">
+        <div>
+          <label for="amount">Amount</label>
+          <input id="amount" name="amount" type="text" inputmode="decimal" required />
+        </div>
+        <div>
+          <label for="category">Category</label>
+          <input id="category" name="category" type="text" required />
+        </div>
+        <div>
+          <label for="date">Date</label>
+          <input id="date" name="date" type="date" required />
+        </div>
+      </form>
+    </main>
+  </body>
+</html>

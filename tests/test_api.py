@@ -180,8 +180,9 @@ def test_status_endpoint(client):
     assert response.get_json() == {"name": "expense-tracker", "status": "running"}
 
 
-def test_expenses_page_endpoint_returns_no_content(client):
+def test_expenses_page_endpoint_returns_html(client):
     response = client.get("/expenses")
 
-    assert response.status_code == 204
-    assert response.data == b""
+    assert response.status_code == 200
+    assert response.mimetype == "text/html"
+    assert "<h1>Expense Tracker</h1>" in response.get_data(as_text=True)
