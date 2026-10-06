@@ -16,6 +16,11 @@ def index():
     )
 
 
+@bp.get("/expenses")
+def expenses_page():
+    return "", 204
+
+
 def validate_expense(payload):
     """Collect field errors without changing the request data."""
     required = {"amount", "category", "date"}
