@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, render_template, request
 
 bp = Blueprint("main", __name__)
 
@@ -14,6 +14,11 @@ def index():
         name="expense-tracker",
         status="running",
     )
+
+
+@bp.get("/expenses")
+def expenses_page():
+    return render_template("index.html")
 
 
 def validate_expense(payload):
