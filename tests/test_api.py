@@ -178,3 +178,10 @@ def test_status_endpoint(client):
     response = client.get("/")
     assert response.status_code == 200
     assert response.get_json() == {"name": "expense-tracker", "status": "running"}
+
+
+def test_expenses_page_endpoint_returns_no_content(client):
+    response = client.get("/expenses")
+
+    assert response.status_code == 204
+    assert response.data == b""
