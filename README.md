@@ -174,6 +174,11 @@ expense-tracker/
 Run the tests with `uv run --locked pytest`.
 Run the configured lint checks with `uv run --locked ruff check .`.
 
+## Contributing
+
+See the [Contribution guidelines](CONTRIBUTING.md) for the branching workflow,
+commit conventions, and checks before merging.
+
 ## Licence
 
 This project is released under the [MIT licence](LICENSE).
