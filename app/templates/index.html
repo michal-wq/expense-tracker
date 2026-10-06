@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Expense Tracker</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
   </head>
   <body>
     <main>
       <h1>Expense Tracker</h1>
-      <p>All fields are required. Submission is not available yet.</p>
+      <p>All fields are required. Expenses are not saved yet.</p>
       <form id="expense-form">
         <div>
           <label for="amount">Amount</label>
@@ -21,9 +22,27 @@
         </div>
         <div>
           <label for="date">Date</label>
-          <input id="date" name="date" type="date" required />
+          <input id="date" name="date" type="date" min="0001-01-01" max="9999-12-31" required />
         </div>
+        <button type="submit">Create expense</button>
       </form>
+      <p id="error" role="alert" hidden></p>
+      <div aria-live="polite">
+        <section id="result" aria-labelledby="result-title" hidden>
+          <h2 id="result-title">Last submitted expense</h2>
+          <dl>
+            <dt>Amount</dt>
+            <dd id="result-amount"></dd>
+            <dt>Category</dt>
+            <dd id="result-category"></dd>
+            <dt>Date</dt>
+            <dd id="result-date"></dd>
+            <dt>Reference ID</dt>
+            <dd id="result-id"></dd>
+          </dl>
+          <p>This expense has not been saved. This result disappears when you reload the page.</p>
+        </section>
+      </div>
     </main>
   </body>
 </html>

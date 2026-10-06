@@ -8,9 +8,9 @@ development through automated checks to deployment.
 
 **Current status:** The Flask application exposes a status endpoint at `/` and
 `POST /api/expenses` for validating requests and returning expense fields with a
-generated ID and status 201. `GET /expenses` is a placeholder for the future UI
-and currently returns an empty 204 response. Expenses are not stored. Persistence,
-the UI, and expense analysis have not been implemented yet.
+generated ID and status 201. `GET /expenses` serves a UI for submitting expenses
+and viewing the last successful response. Expenses are not stored. Persistence
+and expense analysis have not been implemented yet.
 
 ## API contract
 
@@ -79,16 +79,28 @@ The response contains:
 }
 ```
 
-### Check the expenses page placeholder
+### Use the expense UI
 
-```bash
-curl -i http://127.0.0.1:8000/expenses
-```
+With the application running, open <http://127.0.0.1:8000/expenses> in a browser
+with JavaScript enabled. `GET /expenses` returns the HTML page with **200 OK**.
+The status endpoint at `/` remains unchanged.
 
-`GET /expenses` currently returns **204 No Content** with an empty response body.
-This is temporary behavior: the endpoint is reserved for the future expenses UI
-and does not serve HTML or return expense data yet. The status endpoint at `/`
-remains unchanged.
+Enter an amount, category, and date, then select **Create expense**. All fields
+are required. The amount must be positive with at most two decimal places;
+the UI accepts a comma or period and converts a decimal comma to a period before
+sending the amount as a string, without floating-point conversion or rounding.
+Categories cannot contain only whitespace, and dates must be valid with a year
+from 0001 through 9999. The API also validates every submission.
+
+The button is disabled while a request is pending. Errors are displayed without
+clearing your inputs. A successful response appears under **Last submitted
+expense**. The layout adapts to narrow screens, follows your system's light/dark
+theme, and includes visible keyboard focus outlines.
+
+**Current limitations:** Expenses are not saved on the server or in browser
+storage. Only the last successful submission is displayed, and that result
+disappears when the page is reloaded. There is no expense history, editing,
+deletion, or analysis yet.
 
 ### Submit an expense
 
@@ -122,7 +134,12 @@ a valid `YYYY-MM-DD` date. Invalid requests return **400** with a JSON `error` f
 expense-tracker/
 ├── app/
 │   ├── __init__.py       Creates and configures the Flask application
-│   └── routes.py         Defines status, expense creation, and page placeholder endpoints
+│   ├── routes.py         Defines status, expense creation, and UI endpoints
+│   ├── templates/
+│   │   └── index.html   Expense form and result display
+│   └── static/
+│       ├── style.css    Responsive layout, themes, and focus styles
+│       └── app.js       Validation, API submission, and feedback
 ├── tests/
 │   └── test_api.py       API response and validation tests
 ├── wsgi.py              Entry point and local development server
