@@ -1,3 +1,24 @@
+:root {
+  color-scheme: light dark;
+  --background: #f5f7fa;
+  --foreground: #1a1a1a;
+  --muted: #4b5563;
+  --border: #9ca3af;
+  --input-background: #ffffff;
+  --focus: #2563eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #111318;
+    --foreground: #e8eaed;
+    --muted: #b0b8c5;
+    --border: #6b7280;
+    --input-background: #1c222c;
+    --focus: #93b4ff;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -5,8 +26,8 @@
 body {
   margin: 0;
   padding: 2rem 1rem;
-  background: #f5f7fa;
-  color: #1a1a1a;
+  background: var(--background);
+  color: var(--foreground);
   font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -21,7 +42,7 @@ h1 {
 
 p {
   margin: 0 0 1.5rem;
-  color: #4b5563;
+  color: var(--muted);
 }
 
 form {
@@ -41,9 +62,14 @@ input {
   min-width: 0;
   min-height: 2.75rem;
   padding: 0.625rem 0.75rem;
-  border: 1px solid #9ca3af;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--input-background);
   color: inherit;
   font: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
 }
