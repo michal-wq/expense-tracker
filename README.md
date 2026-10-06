@@ -23,6 +23,7 @@ implementation intentionally omits storage.
 - Python ≥ 3.12
 - Git for cloning the repository
 - uv for managing the Python environment and dependencies
+- Make and awk for the Makefile shortcuts (optional when running uv directly)
 
 An internet connection is needed to install dependencies.
 No database configuration is required at this stage.
@@ -51,6 +52,26 @@ use `uv run`.
 ## Usage
 
 Run all commands from the project directory.
+
+### Make commands
+
+The Makefile provides shortcuts for the project's uv commands. Run `make` or
+`make help` to list the available targets.
+
+| Command | Purpose | Underlying command |
+| --- | --- | --- |
+| `make help` | List available commands (the default target) | Prints target descriptions |
+| `make install` | Install application and development dependencies | `uv sync --locked` |
+| `make run` | Start the development server on port 8000 | `uv run --locked python wsgi.py` |
+| `make test` | Run the test suite | `uv run --locked pytest` |
+| `make lint` | Check Python code with Ruff | `uv run --locked ruff check .` |
+| `make fmt` | Format Python files in place | `uv run --locked ruff format .` |
+| `make cov` | Run tests with coverage and show missing lines | `uv run --locked pytest --cov=app --cov-report=term-missing` |
+
+These targets use the project's uv environment; manual activation is not needed.
+The `--locked` flag prevents changes to `uv.lock` and fails if it is out of date.
+`make fmt` modifies files, so review its changes before committing. The coverage
+configuration requires at least 80% coverage for `make cov` to pass.
 
 ### Run locally
 
@@ -145,6 +166,7 @@ expense-tracker/
 ├── wsgi.py              Entry point and local development server
 ├── pyproject.toml       Dependencies and development tool configuration
 ├── uv.lock              Locked dependency versions
+├── Makefile             Shortcuts for setup, running, and quality checks
 ├── README.md            Project documentation
 └── LICENSE              MIT licence
 ```
