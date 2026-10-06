@@ -14,8 +14,9 @@ run: ## Start the development server on port 8000
 test: ## Run the test suite
 	uv run --locked pytest
 
-lint: ## Check Python code with Ruff
+lint: ## Check Python lint and formatting with Ruff
 	uv run --locked ruff check .
+	uv run --locked ruff format --check .
 
 fmt: ## Format Python code with Ruff
 	uv run --locked ruff format .
