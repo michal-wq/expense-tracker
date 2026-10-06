@@ -8,8 +8,9 @@ development through automated checks to deployment.
 
 **Current status:** The Flask application exposes a status endpoint at `/` and
 `POST /api/expenses` for validating requests and returning expense fields with a
-generated ID and status 201. Expenses are not stored. Persistence and expense
-analysis have not been implemented yet.
+generated ID and status 201. `GET /expenses` is a placeholder for the future UI
+and currently returns an empty 204 response. Expenses are not stored. Persistence,
+the UI, and expense analysis have not been implemented yet.
 
 ## API contract
 
@@ -78,6 +79,17 @@ The response contains:
 }
 ```
 
+### Check the expenses page placeholder
+
+```bash
+curl -i http://127.0.0.1:8000/expenses
+```
+
+`GET /expenses` currently returns **204 No Content** with an empty response body.
+This is temporary behavior: the endpoint is reserved for the future expenses UI
+and does not serve HTML or return expense data yet. The status endpoint at `/`
+remains unchanged.
+
 ### Submit an expense
 
 With the application running, use another terminal:
@@ -110,7 +122,7 @@ a valid `YYYY-MM-DD` date. Invalid requests return **400** with a JSON `error` f
 expense-tracker/
 ├── app/
 │   ├── __init__.py       Creates and configures the Flask application
-│   └── routes.py         Defines status and expense creation endpoints
+│   └── routes.py         Defines status, expense creation, and page placeholder endpoints
 ├── tests/
 │   └── test_api.py       API response and validation tests
 ├── wsgi.py              Entry point and local development server
