@@ -33,3 +33,6 @@ jobs:
 
       - name: Run tests with coverage
         run: make cov
+
+      - name: Build and test installed package
+        run: make verify-package
