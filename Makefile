@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install run test lint fmt cov build
+.PHONY: help install run test lint fmt cov build verify-package
 
 help: ## Show available commands
 	@awk -F ':.*## ' '/^[a-z-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -26,3 +26,11 @@ cov: ## Run tests with coverage and show missing lines
 
 build: ## Build wheel and source distributions in dist/
 	uv build
+
+verify-package: build ## Run tests against the installed wheel in a separate environment
+	@package_check="$$(mktemp -d)"; \
+	uv venv "$$package_check/.venv" --python .venv/bin/python && \
+	uv pip install --python "$$package_check/.venv/bin/python" dist/*.whl pytest && \
+	cp -R tests "$$package_check/tests" && \
+	"$$package_check/.venv/bin/python" -I -m pytest -q -c /dev/null \
+		--rootdir "$$package_check" "$$package_check/tests"

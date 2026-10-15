@@ -64,11 +64,14 @@ The Makefile provides shortcuts for the project's uv commands. Run `make` or
 | `make install` | Install application and development dependencies | `uv sync --locked` |
 | `make run` | Start the development server on port 8000 | `uv run --locked python wsgi.py` |
 | `make test` | Run the test suite | `uv run --locked pytest` |
-| `make lint` | Check Python code with Ruff | `uv run --locked ruff check .` |
+| `make lint` | Check Python lint and formatting | `uv run --locked ruff check .` and `uv run --locked ruff format --check .` |
 | `make fmt` | Format Python files in place | `uv run --locked ruff format .` |
 | `make cov` | Run tests with coverage and show missing lines | `uv run --locked pytest --cov=app --cov-report=term-missing` |
+| `make build` | Build wheel and source distributions | `uv build` |
+| `make verify-package` | Build and test the installed wheel in a temporary environment | Builds packages, installs the wheel and pytest, then runs the copied tests |
 
-These targets use the project's uv environment; manual activation is not needed.
+Development commands use the project's uv environment; manual activation is not needed.
+The build target uses an isolated build environment with the configured setuptools backend.
 The `--locked` flag prevents changes to `uv.lock` and fails if it is out of date.
 `make fmt` modifies files, so review its changes before committing. The coverage
 configuration requires at least 80% coverage for `make cov` to pass.
@@ -149,6 +152,81 @@ yet**, including in memory. Amount must be a positive decimal string with at mos
 two decimal places, category must contain non-whitespace text, and date must be
 a valid `YYYY-MM-DD` date. Invalid requests return **400** with a JSON `error` field.
 
+## Build and verify packages
+
+Build the package from the project root:
+
+```bash
+make build
+```
+
+This runs `uv build`, creating a source archive (`.tar.gz`) and an installable
+wheel (`.whl`) under `dist/`. By default, uv builds the wheel from the source
+archive, so both distributions must contain the required application files.
+Build dependencies may need to be downloaded. Generated files under `dist/`
+are ignored by Git and should not be committed.
+
+The setuptools configuration in `pyproject.toml` includes the `app` package,
+the `wsgi` module, HTML templates, CSS, and JavaScript. Inspect both archives
+with the following commands (adjust filenames if the project version changes):
+
+```bash
+uv run --locked python -m zipfile -l dist/expense_tracker-0.1.0-py3-none-any.whl
+tar -tzf dist/expense_tracker-0.1.0.tar.gz
+```
+
+Both archives should contain `app/templates/index.html`, `app/static/style.css`,
+`app/static/app.js`, the Python application files, and `wsgi.py`. The source
+archive places these files inside an `expense_tracker-0.1.0/` directory.
+
+To test the installed wheel independently of the source checkout, run the
+following after `make install`:
+
+```bash
+make verify-package
+```
+
+This target builds the packages, creates a temporary virtual environment using
+the project's Python interpreter, installs the wheel and pytest, and copies the
+tests into the temporary directory. It runs pytest with isolated Python and
+without the project's pytest configuration, which adds the source checkout to
+the import path. This ensures the tests exercise the installed wheel.
+
+The package tests verify that the HTML page, CSS, and JavaScript are served;
+they do not test browser interactions.
+
+## Continuous integration
+
+The [CI workflow](.github/workflows/ci.yml) runs automatically when a pull request
+targeting `main` is opened, reopened, or updated with new commits. Pull requests
+targeting other branches and standalone pushes do not trigger it.
+
+Manual runs are also configured through `workflow_dispatch`. Once the workflow
+exists on the default branch, open **Actions → CI → Run workflow** on GitHub
+and select the branch to check.
+
+The **CI checks** job runs on Ubuntu with Python 3.12 and uv 0.10.9. It installs
+application and development dependencies using `uv sync --locked`, then runs:
+
+| Command | Check |
+| --- | --- |
+| `make lint` | Ruff lint rules and Python formatting |
+| `make cov` | Tests against the source checkout, with at least 80% application coverage |
+| `make verify-package` | Wheel and source build, followed by all tests against the installed wheel, including HTML, CSS, and JavaScript checks |
+
+A failing command marks the job as failed and stops subsequent steps. Review
+the PR checks or the Actions tab for results and logs. Requiring a passing CI
+check before merging is configured separately through branch protection or rulesets.
+
+Run the same checks locally before opening a release PR:
+
+```bash
+make install
+make lint
+make cov
+make verify-package
+```
+
 ## Project structure
 
 ```text
@@ -162,7 +240,8 @@ expense-tracker/
 │       ├── style.css    Responsive layout, themes, and focus styles
 │       └── app.js       Validation, API submission, and feedback
 ├── tests/
-│   └── test_api.py       API response and validation tests
+│   ├── test_api.py       API response and validation tests
+│   └── test_package.py   HTML and static asset tests
 ├── wsgi.py              Entry point and local development server
 ├── pyproject.toml       Dependencies and development tool configuration
 ├── uv.lock              Locked dependency versions
