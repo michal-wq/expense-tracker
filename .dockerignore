@@ -1,0 +1,44 @@
+# Git and CI metadata
+.git
+.github
+
+# Local Python environments and generated files
+.venv
+venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+.coverage
+.coverage.*
+coverage.xml
+htmlcov
+**/*.egg-info
+build
+dist
+
+# Local configuration and credentials
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+.aws
+.ssh
+
+# Terraform state and local variable files
+**/.terraform
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfvars
+**/*.tfvars.json
+
+# Kubernetes secrets
+**/secret.yaml
+**/*.secret.yaml
+
+# Editor and operating system files
+.idea
+.vscode
+**/.DS_Store
+**/Thumbs.db
+**/*.swp
