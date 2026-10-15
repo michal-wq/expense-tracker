@@ -30,3 +30,6 @@ jobs:
 
       - name: Check lint and formatting
         run: make lint
+
+      - name: Run tests with coverage
+        run: make cov
