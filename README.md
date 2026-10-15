@@ -64,11 +64,13 @@ The Makefile provides shortcuts for the project's uv commands. Run `make` or
 | `make install` | Install application and development dependencies | `uv sync --locked` |
 | `make run` | Start the development server on port 8000 | `uv run --locked python wsgi.py` |
 | `make test` | Run the test suite | `uv run --locked pytest` |
-| `make lint` | Check Python code with Ruff | `uv run --locked ruff check .` |
+| `make lint` | Check Python lint and formatting | `uv run --locked ruff check .` and `uv run --locked ruff format --check .` |
 | `make fmt` | Format Python files in place | `uv run --locked ruff format .` |
 | `make cov` | Run tests with coverage and show missing lines | `uv run --locked pytest --cov=app --cov-report=term-missing` |
+| `make build` | Build wheel and source distributions | `uv build` |
 
-These targets use the project's uv environment; manual activation is not needed.
+Development commands use the project's uv environment; manual activation is not needed.
+The build target uses an isolated build environment with the configured setuptools backend.
 The `--locked` flag prevents changes to `uv.lock` and fails if it is out of date.
 `make fmt` modifies files, so review its changes before committing. The coverage
 configuration requires at least 80% coverage for `make cov` to pass.
@@ -148,6 +150,60 @@ The ID is generated for each request. **Expenses are returned but are not saved
 yet**, including in memory. Amount must be a positive decimal string with at most
 two decimal places, category must contain non-whitespace text, and date must be
 a valid `YYYY-MM-DD` date. Invalid requests return **400** with a JSON `error` field.
+
+## Build and verify packages
+
+Build the package from the project root:
+
+```bash
+make build
+```
+
+This runs `uv build`, creating a source archive (`.tar.gz`) and an installable
+wheel (`.whl`) under `dist/`. By default, uv builds the wheel from the source
+archive, so both distributions must contain the required application files.
+Build dependencies may need to be downloaded. Generated files under `dist/`
+are ignored by Git and should not be committed.
+
+The setuptools configuration in `pyproject.toml` includes the `app` package,
+the `wsgi` module, HTML templates, CSS, and JavaScript. Inspect both archives
+with the following commands (adjust filenames if the project version changes):
+
+```bash
+uv run --locked python -m zipfile -l dist/expense_tracker-0.1.0-py3-none-any.whl
+tar -tzf dist/expense_tracker-0.1.0.tar.gz
+```
+
+Both archives should contain `app/templates/index.html`, `app/static/style.css`,
+`app/static/app.js`, the Python application files, and `wsgi.py`. The source
+archive places these files inside an `expense_tracker-0.1.0/` directory.
+
+To check the installed wheel independently of the source checkout, create a
+temporary environment after running `make install` and `make build`:
+
+```bash
+package_check="$(mktemp -d)"
+uv venv "$package_check/.venv" --python .venv/bin/python
+uv pip install --python "$package_check/.venv/bin/python" dist/expense_tracker-0.1.0-py3-none-any.whl
+"$package_check/.venv/bin/python" -I - <<'PY'
+from wsgi import app
+
+client = app.test_client()
+page = client.get("/expenses")
+assert page.status_code == 200
+assert b"Expense Tracker" in page.data
+for path in ("/static/style.css", "/static/app.js"):
+    response = client.get(path)
+    assert response.status_code == 200
+    assert response.data
+print("Installed wheel serves the HTML page, CSS, and JavaScript.")
+PY
+```
+
+The `-I` option prevents Python from importing the local checkout through the
+current directory or `PYTHONPATH`. This verifies that the installed package
+contains the UI assets; it does not test browser interactions. Keep the
+`package_check` variable in the same terminal for all commands above.
 
 ## Project structure
 
