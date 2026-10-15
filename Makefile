@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install run test lint fmt cov
+.PHONY: help install run test lint fmt cov build
 
 help: ## Show available commands
 	@awk -F ':.*## ' '/^[a-z-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -23,3 +23,6 @@ fmt: ## Format Python code with Ruff
 
 cov: ## Run tests with coverage and show missing lines
 	uv run --locked pytest --cov=app --cov-report=term-missing
+
+build: ## Build wheel and source distributions in dist/
+	uv build
