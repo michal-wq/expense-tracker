@@ -4,7 +4,7 @@ IMAGE ?= expense-tracker
 TAG ?= local
 PORT ?= 8000
 
-.PHONY: help install run test lint fmt cov build verify-package docker-build docker-run
+.PHONY: help install run test lint fmt cov build verify-package docker-build docker-run docker-test
 
 help: ## Show available commands
 	@awk -F ':.*## ' '/^[a-z-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -44,3 +44,6 @@ docker-build: ## Build the Docker image (IMAGE and TAG are configurable)
 
 docker-run: ## Run the Docker image on localhost (default PORT=8000)
 	docker run --rm -p "127.0.0.1:$(PORT):8000" "$(IMAGE):$(TAG)"
+
+docker-test: docker-build ## Build the Docker image and check its HTTP endpoints
+	DOCKER_IMAGE="$(IMAGE):$(TAG)" uv run --locked pytest checks/test_docker.py
