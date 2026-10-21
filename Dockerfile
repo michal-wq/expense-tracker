@@ -16,7 +16,7 @@ COPY wsgi.py ./
 RUN uv sync --locked --no-dev --no-editable --no-cache
 
 RUN groupadd --gid 10001 app \
-    && useradd --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app
+    && useradd --uid 10001 --gid app --create-home --shell /usr/sbin/nologin app
 
 USER app
 
