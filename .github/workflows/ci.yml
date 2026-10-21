@@ -36,3 +36,6 @@ jobs:
 
       - name: Build and test installed package
         run: make verify-package
+
+      - name: Build and test Docker container
+        run: make docker-test
