@@ -24,6 +24,7 @@ implementation intentionally omits storage.
 - Git for cloning the repository
 - uv for managing the Python environment and dependencies
 - Make and awk for the Makefile shortcuts (optional when running uv directly)
+- Docker with a running engine for container commands (Docker Desktop on macOS)
 
 An internet connection is needed to install dependencies.
 No database configuration is required at this stage.
@@ -69,6 +70,9 @@ The Makefile provides shortcuts for the project's uv commands. Run `make` or
 | `make cov` | Run tests with coverage and show missing lines | `uv run --locked pytest --cov=app --cov-report=term-missing` |
 | `make build` | Build wheel and source distributions | `uv build` |
 | `make verify-package` | Build and test the installed wheel in a temporary environment | Builds packages, installs the wheel and pytest, then runs the copied tests |
+| `make docker-build` | Build the application image | `docker build -t "$(IMAGE):$(TAG)" .` |
+| `make docker-run` | Run the image on localhost | `docker run --rm -p "127.0.0.1:$(PORT):8000" "$(IMAGE):$(TAG)"` |
+| `make docker-test` | Build the image and test its HTTP endpoints | Runs `docker-build`, then `checks/test_docker.py` with pytest |
 
 Development commands use the project's uv environment; manual activation is not needed.
 The build target uses an isolated build environment with the configured setuptools backend.
@@ -152,6 +156,68 @@ yet**, including in memory. Amount must be a positive decimal string with at mos
 two decimal places, category must contain non-whitespace text, and date must be
 a valid `YYYY-MM-DD` date. Invalid requests return **400** with a JSON `error` field.
 
+## Run with Docker
+
+Start Docker Desktop or your Docker engine, then run these commands from the
+project root:
+
+```bash
+make docker-build
+make docker-run
+```
+
+The default image is `expense-tracker:local`. The image uses Python 3.12 and
+uv 0.10.9 to install locked application dependencies without development tools.
+Gunicorn serves `wsgi:app` as a non-root user on container port 8000.
+
+Open <http://127.0.0.1:8000/expenses> for the UI. The root URL
+<http://127.0.0.1:8000/> returns status JSON. Container logs appear in the
+terminal; keep it open while using the app and press **Ctrl+C** to stop it.
+The `--rm` option removes the container when it exits; the built image remains.
+
+If port 8000 is occupied, select a different host port:
+
+```bash
+make docker-run PORT=8001
+```
+
+Then open <http://127.0.0.1:8001/expenses>. Only the host port changes: Gunicorn
+still listens on port 8000 inside the container. Ports are published on
+`127.0.0.1`, making the app accessible from the same computer.
+
+Image name and tag can also be overridden. Use matching values when building
+and running:
+
+```bash
+make docker-build IMAGE=my-expenses TAG=dev
+make docker-run IMAGE=my-expenses TAG=dev PORT=8001
+```
+
+Rebuild the image after changing application files or the Dockerfile, then
+stop the old container and start a new one to use the updated image.
+
+To run in the background instead, use a named container:
+
+```bash
+docker run --rm --detach --name expense-tracker -p 127.0.0.1:8000:8000 expense-tracker:local
+docker logs expense-tracker
+```
+
+Stop that container with:
+
+```bash
+docker stop expense-tracker
+```
+
+**Persistence:** Expenses are not saved, including while the container is running.
+The UI only shows the last successful response until the page is reloaded.
+There is no database or Docker volume configuration yet.
+
+After `make install`, run `make docker-test` to build the image and test the
+status endpoint, HTML page, CSS, and JavaScript over HTTP. The check uses an
+available localhost port, waits for startup, and stops its temporary container
+afterward. These Docker checks run separately from `make test` and `make cov`.
+
 ## Build and verify packages
 
 Build the package from the project root:
@@ -213,6 +279,7 @@ application and development dependencies using `uv sync --locked`, then runs:
 | `make lint` | Ruff lint rules and Python formatting |
 | `make cov` | Tests against the source checkout, with at least 80% application coverage |
 | `make verify-package` | Wheel and source build, followed by all tests against the installed wheel, including HTML, CSS, and JavaScript checks |
+| `make docker-test` | Docker image build and HTTP checks against a running temporary container |
 
 A failing command marks the job as failed and stops subsequent steps. Review
 the PR checks or the Actions tab for results and logs. Requiring a passing CI
@@ -225,6 +292,7 @@ make install
 make lint
 make cov
 make verify-package
+make docker-test
 ```
 
 ## Project structure
@@ -242,6 +310,10 @@ expense-tracker/
 ├── tests/
 │   ├── test_api.py       API response and validation tests
 │   └── test_package.py   HTML and static asset tests
+├── checks/
+│   └── test_docker.py    Tests against a running Docker container
+├── Dockerfile           Python image and non-root Gunicorn runtime
+├── .dockerignore        Files excluded from the Docker build context
 ├── wsgi.py              Entry point and local development server
 ├── pyproject.toml       Dependencies and development tool configuration
 ├── uv.lock              Locked dependency versions
