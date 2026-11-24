@@ -16,7 +16,7 @@ run: ## Start the development server on port 8000
 	uv run --locked python wsgi.py
 
 test: ## Run the test suite
-	uv run --locked pytest
+	sh checks/with-test-db.sh uv run --locked pytest
 
 lint: ## Check Python lint and formatting with Ruff
 	uv run --locked ruff check .
@@ -26,7 +26,7 @@ fmt: ## Format Python code with Ruff
 	uv run --locked ruff format .
 
 cov: ## Run tests with coverage and show missing lines
-	uv run --locked pytest --cov=app --cov-report=term-missing
+	sh checks/with-test-db.sh uv run --locked pytest --cov=app --cov-report=term-missing
 
 build: ## Build wheel and source distributions in dist/
 	uv build
@@ -36,7 +36,7 @@ verify-package: build ## Run tests against the installed wheel in a separate env
 	uv venv "$$package_check/.venv" --python .venv/bin/python && \
 	uv pip install --python "$$package_check/.venv/bin/python" dist/*.whl pytest && \
 	cp -R tests "$$package_check/tests" && \
-	"$$package_check/.venv/bin/python" -I -m pytest -q -c /dev/null \
+	sh checks/with-test-db.sh "$$package_check/.venv/bin/python" -I -m pytest -q -c /dev/null \
 		--rootdir "$$package_check" "$$package_check/tests"
 
 docker-build: ## Build the Docker image (IMAGE and TAG are configurable)

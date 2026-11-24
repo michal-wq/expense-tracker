@@ -1,8 +1,18 @@
+import os
 from uuid import UUID
 
+import psycopg
 import pytest
 
 from app import create_app
+
+
+@pytest.fixture
+def test_database_url():
+    url = os.environ.get("TEST_DATABASE_URL")
+    if not url:
+        pytest.skip("Run make test to start the test database.")
+    return url
 
 
 @pytest.fixture
@@ -19,6 +29,13 @@ def payload():
         "category": "Groceries",
         "date": "2026-10-05",
     }
+
+
+def test_expenses_schema_is_available(test_database_url):
+    with psycopg.connect(test_database_url) as connection:
+        result = connection.execute("SELECT to_regclass('public.expenses')::text").fetchone()
+
+    assert result == ("expenses",)
 
 
 def test_create_expense_returns_created_expense(client, payload):
