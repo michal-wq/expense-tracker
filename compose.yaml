@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: expense_tracker
+      POSTGRES_USER: expense_tracker
+      # Default for local development.
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-expense_tracker_local}"
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-expenses.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "expense_tracker", "-d", "expense_tracker"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  postgres_data:

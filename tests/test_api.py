@@ -1,15 +1,33 @@
+import os
+from datetime import date
+from decimal import Decimal
 from uuid import UUID
 
+import psycopg
 import pytest
 
 from app import create_app
 
 
 @pytest.fixture
+def test_database_url():
+    url = os.environ.get("TEST_DATABASE_URL")
+    if not url:
+        pytest.skip("Run make test to start the test database.")
+    return url
+
+
+@pytest.fixture
 def client():
     app = create_app()
-    app.config["TESTING"] = True
+    app.config.update(TESTING=True, DATABASE_URL=None)
     return app.test_client()
+
+
+@pytest.fixture
+def database_client(client, test_database_url):
+    client.application.config["DATABASE_URL"] = test_database_url
+    return client
 
 
 @pytest.fixture
@@ -21,8 +39,16 @@ def payload():
     }
 
 
-def test_create_expense_returns_created_expense(client, payload):
-    response = client.post("/api/expenses", json=payload)
+def test_expenses_schema_is_available(test_database_url):
+    with psycopg.connect(test_database_url) as connection:
+        result = connection.execute("SELECT to_regclass('public.expenses')::text").fetchone()
+
+    assert result == ("expenses",)
+
+
+def test_create_expense_returns_created_expense(database_client, payload, test_database_url):
+    payload["amount"] = "123456789012345678901234567890.12"
+    response = database_client.post("/api/expenses", json=payload)
 
     assert response.status_code == 201
     assert response.mimetype == "application/json"
@@ -31,6 +57,39 @@ def test_create_expense_returns_created_expense(client, payload):
     assert expense_id.version == 4
     assert str(expense_id) == expense["id"]
     assert expense == {"id": expense["id"], **payload}
+
+    with psycopg.connect(test_database_url) as connection:
+        row = connection.execute(
+            "SELECT id, amount, category, date FROM expenses WHERE id = %s", (expense_id,)
+        ).fetchone()
+    assert row == (
+        expense_id,
+        Decimal(expense["amount"]),
+        expense["category"],
+        date.fromisoformat(expense["date"]),
+    )
+
+
+def test_create_expense_returns_internal_error_on_failed_insert(
+    database_client, payload, test_database_url, monkeypatch
+):
+    created = database_client.post("/api/expenses", json=payload)
+    assert created.status_code == 201
+    expense_id = UUID(created.get_json()["id"])
+    monkeypatch.setattr("app.routes.uuid4", lambda: expense_id)
+
+    response = database_client.post("/api/expenses", json={**payload, "category": "Travel"})
+
+    assert response.status_code == 500
+    assert response.mimetype == "application/json"
+    assert response.get_json() == {
+        "error": {"code": "internal_error", "message": "The expense could not be saved."}
+    }
+    with psycopg.connect(test_database_url) as connection:
+        rows = connection.execute(
+            "SELECT category FROM expenses WHERE id = %s", (expense_id,)
+        ).fetchall()
+    assert rows == [(payload["category"],)]
 
 
 @pytest.mark.parametrize("field", ["amount", "category", "date"])
@@ -62,9 +121,9 @@ def test_create_expense_rejects_non_positive_amount(client, payload, amount):
         ("123456789012345678901234567890.12", "123456789012345678901234567890.12"),
     ],
 )
-def test_create_expense_normalizes_exact_amount(client, payload, amount, expected):
+def test_create_expense_normalizes_exact_amount(database_client, payload, amount, expected):
     payload.update(amount=amount, category="  Groceries  ", date="2024-02-29")
-    response = client.post("/api/expenses", json=payload)
+    response = database_client.post("/api/expenses", json=payload)
     assert response.status_code == 201
     expense = response.get_json()
     assert expense == {
@@ -160,11 +219,11 @@ def test_reports_all_field_errors(client):
     assert fields["extra"] == "Unknown field."
 
 
-def test_repeated_requests_generate_different_ids(client, payload):
-    first_response = client.post("/api/expenses", json=payload)
+def test_repeated_requests_generate_different_ids(database_client, payload):
+    first_response = database_client.post("/api/expenses", json=payload)
     assert first_response.status_code == 201
     first = first_response.get_json()
-    response = client.post(
+    response = database_client.post(
         "/api/expenses",
         json=payload,
         content_type="application/json; charset=utf-8",
