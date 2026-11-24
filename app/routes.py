@@ -3,7 +3,8 @@ from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
-from flask import Blueprint, jsonify, render_template, request
+import psycopg
+from flask import Blueprint, current_app, jsonify, render_template, request
 
 bp = Blueprint("main", __name__)
 
@@ -82,9 +83,28 @@ def create_expense():
         ), 400
 
     amount = Decimal(payload["amount"])
+    expense_id = uuid4()
+    category = payload["category"].strip()
+    expense_date = date.fromisoformat(payload["date"])
+
+    try:
+        database_url = current_app.config["DATABASE_URL"]
+        if not database_url:
+            raise psycopg.OperationalError("DATABASE_URL is not configured.")
+        with psycopg.connect(database_url) as connection:
+            connection.execute(
+                "INSERT INTO expenses (id, amount, category, date) VALUES (%s, %s, %s, %s)",
+                (expense_id, amount, category, expense_date),
+            )
+    except psycopg.Error as error:
+        current_app.logger.error("Could not save expense (%s).", type(error).__name__)
+        return jsonify(
+            error={"code": "internal_error", "message": "The expense could not be saved."},
+        ), 500
+
     return jsonify(
-        id=str(uuid4()),
+        id=str(expense_id),
         amount=format(amount, ".2f"),
-        category=payload["category"].strip(),
-        date=payload["date"],
+        category=category,
+        date=expense_date.isoformat(),
     ), 201
