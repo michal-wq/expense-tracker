@@ -1,11 +1,9 @@
 # Create an expense
 
-**Status:** Partially implemented. `POST /api/expenses` validates the request,
-generates an ID, and returns the expense fields with status 201. As requested for
-this implementation step, it does not store expenses in a database, files, or an
-in-memory collection. Persistence requirements and persistence error responses
-below describe the future target contract, not current behavior. The application
-also exposes the status endpoint at `/`.
+**Status:** Implemented. `POST /api/expenses` validates the request, stores the
+expense in PostgreSQL, and returns the saved expense with a generated ID and
+status 201. The database connection URL is read from the `DATABASE_URL`
+environment variable. The application also exposes the status endpoint at `/`.
 
 ## Request
 
@@ -111,8 +109,9 @@ deliberately a **400**, so all invalid requests follow the same status policy.
   leaves the expense store unchanged, even when some fields are valid.
 - Save the ID and all three fields atomically. If saving fails, roll back the
   write; never leave a partial expense or report **201** before the save commits.
-- Persistence must survive application restarts. The storage technology and
-  schema are implementation decisions deferred until persistence is introduced.
+- Persistence must survive application restarts. The local PostgreSQL service
+  uses the `expenses` table defined in `db/init.sql` and the named `postgres_data`
+  volume declared in `compose.yaml`.
 
 ## Acceptance examples
 
@@ -131,5 +130,4 @@ deliberately a **400**, so all invalid requests follow the same status policy.
 | Multiple invalid fields | 400; all field errors reported; no expense saved. |
 | Persistence transaction fails | 500; no expense committed. |
 
-Response and validation behavior is covered by `tests/test_api.py`. Persistence
-checks are deferred until storage is introduced.
+Response, validation, and persistence behavior is covered by `tests/test_api.py`.

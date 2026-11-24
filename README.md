@@ -7,16 +7,16 @@ expenses. The project aims to demonstrate a complete DevOps pipeline, from
 development through automated checks to deployment.
 
 **Current status:** The Flask application exposes a status endpoint at `/` and
-`POST /api/expenses` for validating requests and returning expense fields with a
-generated ID and status 201. `GET /expenses` serves a UI for submitting expenses
-and viewing the last successful response. Expenses are not stored. Persistence
-and expense analysis have not been implemented yet.
+`POST /api/expenses` for validating and storing expenses in PostgreSQL. A
+successful request returns the saved expense with a generated ID and status
+201. `GET /expenses` serves a UI for submitting expenses and viewing the last
+successful response. The UI does not display an expense history or provide
+expense analysis yet.
 
 ## API contract
 
 The [POST /api/expenses contract](docs/api/expenses.md) defines request validation,
-success and error responses, and planned persistence guarantees. The current
-implementation intentionally omits storage.
+persistence guarantees, and success and error responses.
 
 ## Prerequisites
 
@@ -24,10 +24,11 @@ implementation intentionally omits storage.
 - Git for cloning the repository
 - uv for managing the Python environment and dependencies
 - Make and awk for the Makefile shortcuts (optional when running uv directly)
-- Docker with a running engine for container commands (Docker Desktop on macOS)
+- Docker with a running engine for PostgreSQL and container commands (Docker Desktop on macOS)
 
 An internet connection is needed to install dependencies.
-No database configuration is required at this stage.
+The application uses PostgreSQL. The Compose setup below starts a local database
+with a project-specific named volume.
 
 ## Setup
 
@@ -71,7 +72,7 @@ The Makefile provides shortcuts for the project's uv commands. Run `make` or
 | `make build` | Build wheel and source distributions | `uv build` |
 | `make verify-package` | Build and test the installed wheel in a temporary environment | Builds packages, installs the wheel and pytest, then runs the copied tests |
 | `make docker-build` | Build the application image | `docker build -t "$(IMAGE):$(TAG)" .` |
-| `make docker-run` | Run the image on localhost | `docker run --rm -p "127.0.0.1:$(PORT):8000" "$(IMAGE):$(TAG)"` |
+| `make docker-run` | Run the image on localhost without database configuration | `docker run --rm -p "127.0.0.1:$(PORT):8000" "$(IMAGE):$(TAG)"` |
 | `make docker-test` | Build the image and test its HTTP endpoints | Runs `docker-build`, then `checks/test_docker.py` with pytest |
 
 Development commands use the project's uv environment; manual activation is not needed.
@@ -80,15 +81,40 @@ The `--locked` flag prevents changes to `uv.lock` and fails if it is out of date
 `make fmt` modifies files, so review its changes before committing. The coverage
 configuration requires at least 80% coverage for `make cov` to pass.
 
-### Run locally
+### Start PostgreSQL locally
 
 ```bash
-uv run python wsgi.py
+docker compose up -d --wait db
 ```
 
-The application is available at <http://127.0.0.1:8000>.
-The development server runs with debug mode enabled and is intended for local
-development. Press `Ctrl+C` to stop it.
+Compose creates the `expenses` table and stores database files in its named
+`postgres_data` volume. The default local database settings are:
+
+| Setting | Value |
+| --- | --- |
+| Host | `127.0.0.1` |
+| Port | `5432` |
+| Database | `expense_tracker` |
+| User | `expense_tracker` |
+| Password | `expense_tracker_local` |
+
+If port 5432 is already in use, start PostgreSQL on another host port, for
+example `POSTGRES_PORT=5433 docker compose up -d --wait db`, and use that port
+in `DATABASE_URL` below. To stop PostgreSQL while retaining its data, run
+`docker compose down`. To remove the database and its data volume, run
+`docker compose down --volumes`.
+
+### Run Flask locally
+
+Start the development server with the database URL configured:
+
+```bash
+DATABASE_URL='postgresql://expense_tracker:expense_tracker_local@127.0.0.1:5432/expense_tracker' make run
+```
+
+For a non-default PostgreSQL port, replace `5432` in the URL. The application
+is available at <http://127.0.0.1:8000>. The development server runs with debug
+mode enabled and is intended for local development. Press `Ctrl+C` to stop it.
 
 ### Check the application status
 
@@ -125,10 +151,10 @@ clearing your inputs. A successful response appears under **Last submitted
 expense**. The layout adapts to narrow screens, follows your system's light/dark
 theme, and includes visible keyboard focus outlines.
 
-**Current limitations:** Expenses are not saved on the server or in browser
-storage. Only the last successful submission is displayed, and that result
-disappears when the page is reloaded. There is no expense history, editing,
-deletion, or analysis yet.
+**Current limitations:** Expenses are saved in PostgreSQL, but the UI displays
+only the last successful submission from the current page. That result
+disappears when the page is reloaded. The UI does not yet show an expense
+history or support editing, deletion, or analysis.
 
 ### Submit an expense
 
@@ -140,7 +166,8 @@ curl -i http://127.0.0.1:8000/api/expenses \
   -d '{"amount":"12.30","category":"Groceries","date":"2026-10-05"}'
 ```
 
-The endpoint validates the request and returns **201 Created** with JSON like:
+The endpoint validates and stores the request, then returns **201 Created**
+with the saved expense as JSON:
 
 ```json
 {
@@ -151,34 +178,48 @@ The endpoint validates the request and returns **201 Created** with JSON like:
 }
 ```
 
-The ID is generated for each request. **Expenses are returned but are not saved
-yet**, including in memory. Amount must be a positive decimal string with at most
-two decimal places, category must contain non-whitespace text, and date must be
-a valid `YYYY-MM-DD` date. Invalid requests return **400** with a JSON `error` field.
+The ID is generated for each request. The expense is stored in PostgreSQL before
+the successful response is returned. Amount must be a positive decimal string
+with at most two decimal places, category must contain non-whitespace text, and
+date must be a valid `YYYY-MM-DD` date. Invalid requests return **400** with a
+JSON `error` field. A database failure returns **500** and does not report the
+expense as successfully created.
 
 ## Run with Docker
 
-Start Docker Desktop or your Docker engine, then run these commands from the
-project root:
+Start Docker Desktop or your Docker engine. Start PostgreSQL and build the
+application image from the project root:
 
 ```bash
+docker compose up -d --wait db
 make docker-build
-make docker-run
 ```
 
 The default image is `expense-tracker:local`. The image uses Python 3.12 and
 uv 0.10.9 to install locked application dependencies without development tools.
 Gunicorn serves `wsgi:app` as a non-root user on container port 8000.
 
+Run the image on the same Docker network as PostgreSQL and configure the
+database URL to use the Compose service name `db`:
+
+```bash
+docker run --rm --network expense-tracker_default \
+  -e DATABASE_URL='postgresql://expense_tracker:expense_tracker_local@db:5432/expense_tracker' \
+  -p 127.0.0.1:8000:8000 expense-tracker:local
+```
+
 Open <http://127.0.0.1:8000/expenses> for the UI. The root URL
 <http://127.0.0.1:8000/> returns status JSON. Container logs appear in the
 terminal; keep it open while using the app and press **Ctrl+C** to stop it.
-The `--rm` option removes the container when it exits; the built image remains.
+The `--rm` option removes the application container when it exits; the image and
+PostgreSQL volume remain.
 
 If port 8000 is occupied, select a different host port:
 
 ```bash
-make docker-run PORT=8001
+docker run --rm --network expense-tracker_default \
+  -e DATABASE_URL='postgresql://expense_tracker:expense_tracker_local@db:5432/expense_tracker' \
+  -p 127.0.0.1:8001:8000 expense-tracker:local
 ```
 
 Then open <http://127.0.0.1:8001/expenses>. Only the host port changes: Gunicorn
@@ -190,28 +231,21 @@ and running:
 
 ```bash
 make docker-build IMAGE=my-expenses TAG=dev
-make docker-run IMAGE=my-expenses TAG=dev PORT=8001
+docker run --rm --network expense-tracker_default \
+  -e DATABASE_URL='postgresql://expense_tracker:expense_tracker_local@db:5432/expense_tracker' \
+  -p 127.0.0.1:8001:8000 my-expenses:dev
 ```
 
 Rebuild the image after changing application files or the Dockerfile, then
 stop the old container and start a new one to use the updated image.
 
-To run in the background instead, use a named container:
-
-```bash
-docker run --rm --detach --name expense-tracker -p 127.0.0.1:8000:8000 expense-tracker:local
-docker logs expense-tracker
-```
-
-Stop that container with:
-
-```bash
-docker stop expense-tracker
-```
-
-**Persistence:** Expenses are not saved, including while the container is running.
-The UI only shows the last successful response until the page is reloaded.
-There is no database or Docker volume configuration yet.
+**Persistence:** Expenses are stored in the PostgreSQL `postgres_data` volume,
+so they remain available after the application container stops or is recreated.
+Removing that volume with `docker compose down --volumes` deletes the database
+data. The UI still shows only the last successful submission from the current
+page, and clears that display when the page is reloaded. `make docker-run` by
+itself does not attach the database network or set `DATABASE_URL`; use the
+command above when running the application with persistence.
 
 After `make install`, run `make docker-test` to build the image and test the
 status endpoint, HTML page, CSS, and JavaScript over HTTP. The check uses an
